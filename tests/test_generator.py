@@ -23,14 +23,21 @@ def test_is_question_detection():
     assert _is_question("How do I fix this?", "en")
 
 
-def test_template_reply_is_contextual_and_nonempty():
+def test_template_reply_is_short_and_nonempty():
     gen = TemplateReplyGenerator(language="ru", rng=random.Random(1))
-    title = "Как защититься от фишинга"
-    reply = gen.generate(title)
+    reply = gen.generate("Как защититься от фишинга?")
     assert isinstance(reply, str)
-    assert len(reply) > 20
-    # The reply should reference a keyword from the title.
-    assert "защититься" in reply.lower()
+    assert reply.strip()
+    # Replies are intentionally short & casual for the flood section.
+    assert len(reply) <= 60
+
+
+def test_template_reply_greeting_category():
+    gen = TemplateReplyGenerator(language="ru", rng=random.Random(0))
+    # A greeting title should reliably produce a greeting-style reply.
+    replies = {gen.generate("Доброе утро всем") for _ in range(20)}
+    assert any("утро" in r.lower() or "привет" in r.lower() or "здаров" in r.lower()
+               or "хай" in r.lower() or "дратути" in r.lower() for r in replies)
 
 
 def test_template_reply_switches_language_for_english_title():
@@ -38,7 +45,6 @@ def test_template_reply_switches_language_for_english_title():
     reply = gen.generate("How to configure nginx reverse proxy?")
     # An English title must not produce a Cyrillic reply.
     assert not any("а" <= ch <= "я" for ch in reply.lower())
-    assert "nginx" in reply.lower() or "configure" in reply.lower()
 
 
 def test_template_reply_handles_empty_title():

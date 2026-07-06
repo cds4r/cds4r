@@ -45,6 +45,15 @@ _RU_QUESTION_WORDS = {
 }
 _EN_QUESTION_WORDS = {"how", "what", "where", "why", "when", "who", "which", "can"}
 
+# Words that hint at the "category" of a thread so replies stay a bit relevant.
+_RU_GREETING_HINTS = {
+    "утро", "утречко", "утречка", "утра", "привет", "приветик", "здаров",
+    "здарова", "хай", "ночи", "ночь", "добри", "доброе", "здравствуйте",
+    "здравствуй", "вечер", "день", "дратути", "всем",
+}
+_RU_RATING_HINTS = {"оцените", "оценка", "оценить", "оцен", "прокачку", "прокачка"}
+_RU_BYE_HINTS = {"прощаюсь", "пока", "ухожу", "спокойной", "споки", "устал", "устала"}
+
 
 class ReplyGenerator(Protocol):
     """Anything that turns a thread title into a reply body."""
@@ -99,103 +108,80 @@ class TemplateReplyGenerator:
     def generate(self, title: str, *, thread_body: Optional[str] = None) -> str:
         title = (title or "").strip()
         language = self._lang_for_title(title)
-        keywords = _keywords(title, language)
-        topic = keywords[0] if keywords else None
-        question = _is_question(title, language)
+        category = self._category(title, language)
 
         if language == "ru":
-            return self._generate_ru(title, topic, keywords, question)
-        return self._generate_en(title, topic, keywords, question)
-
-    # -- Russian ----------------------------------------------------------
-    def _generate_ru(self, title, topic, keywords, question) -> str:
-        topic_phrase = f"«{topic}»" if topic else "этой теме"
-        keyword_phrase = ", ".join(keywords[:3]) if keywords else "этот вопрос"
-
-        if question:
-            openers = [
-                f"Хороший вопрос по теме {topic_phrase}.",
-                f"Тоже интересовался этим по поводу {topic_phrase}.",
-                f"Отличная тема — {topic_phrase} действительно заслуживает внимания.",
-            ]
-            bodies = [
-                f"Из своего опыта скажу: тут важно разобраться в деталях "
-                f"({keyword_phrase}), а не искать быстрый ответ.",
-                f"Советую сначала уточнить вводные, а потом уже двигаться по "
-                f"пунктам — тогда с {topic_phrase} будет проще.",
-                f"Если коротко — многое зависит от конкретной ситуации, "
-                f"но по {topic_phrase} обычно помогает пошаговый подход.",
-            ]
-            closers = [
-                "Если скинешь больше деталей, подскажу конкретнее.",
-                "Готов помочь, если распишешь подробнее.",
-                "Напиши, что именно уже пробовал — так будет понятнее.",
-            ]
+            reply = self._rng.choice(_RU_REPLIES[category])
         else:
-            openers = [
-                f"Интересная тема про {topic_phrase}.",
-                f"Спасибо, что подняли тему {topic_phrase}.",
-                f"Полезно, {topic_phrase} сейчас реально актуально.",
-            ]
-            bodies = [
-                f"Согласен по поводу {keyword_phrase} — сам сталкивался с похожим.",
-                f"Тема {topic_phrase} у многих вызывает вопросы, так что материал в тему.",
-                f"По {topic_phrase} есть что обсудить, тут важны нюансы ({keyword_phrase}).",
-            ]
-            closers = [
-                "Было бы здорово услышать и другие мнения.",
-                "Подписался, интересно следить за обсуждением.",
-                "Если будут обновления по теме — пиши.",
-            ]
-        return self._compose(openers, bodies, closers)
+            reply = self._rng.choice(_EN_REPLIES[category])
 
-    # -- English ----------------------------------------------------------
-    def _generate_en(self, title, topic, keywords, question) -> str:
-        topic_phrase = f"\"{topic}\"" if topic else "this topic"
-        keyword_phrase = ", ".join(keywords[:3]) if keywords else "this"
+        # Occasionally add a trailing emoji for extra flavour (but not always,
+        # so replies stay human and varied).
+        if self._rng.random() < 0.4:
+            reply = f"{reply} {self._rng.choice(_EXTRA_EMOJI)}"
+        return reply
 
-        if question:
-            openers = [
-                f"Good question about {topic_phrase}.",
-                f"I was wondering about {topic_phrase} too.",
-                f"Solid topic — {topic_phrase} definitely deserves a look.",
-            ]
-            bodies = [
-                f"From my experience it comes down to the details ({keyword_phrase}) "
-                f"rather than a one-size-fits-all answer.",
-                f"I'd nail down the requirements first, then work through it step "
-                f"by step — {topic_phrase} gets much easier that way.",
-                f"Short version: it depends on your setup, but a methodical approach "
-                f"to {topic_phrase} usually works.",
-            ]
-            closers = [
-                "Share a few more details and I can be more specific.",
-                "Happy to help if you expand on it.",
-                "Let me know what you've already tried.",
-            ]
+    def _category(self, title: str, language: str) -> str:
+        """Bucket the title into greeting / bye / rating / question / generic."""
+        words = set(re.findall(r"[\w']+", title.lower(), re.UNICODE))
+        if language == "ru":
+            if words & _RU_GREETING_HINTS:
+                return "greeting"
+            if words & _RU_BYE_HINTS:
+                return "bye"
+            if words & _RU_RATING_HINTS:
+                return "rating"
         else:
-            openers = [
-                f"Interesting write-up on {topic_phrase}.",
-                f"Thanks for bringing up {topic_phrase}.",
-                f"Useful — {topic_phrase} is pretty relevant right now.",
-            ]
-            bodies = [
-                f"I agree on {keyword_phrase}, ran into something similar myself.",
-                f"{topic_phrase} raises a lot of questions, so this is timely.",
-                f"There's a lot to discuss around {topic_phrase} — the nuances matter "
-                f"({keyword_phrase}).",
-            ]
-            closers = [
-                "Would love to hear other opinions too.",
-                "Following this thread, curious where it goes.",
-                "Ping the thread if there are updates.",
-            ]
-        return self._compose(openers, bodies, closers)
+            lower = title.lower()
+            if any(w in lower for w in ("hi", "hello", "morning", "good night", "gm")):
+                return "greeting"
+            if any(w in lower for w in ("bye", "cya", "leaving", "gn")):
+                return "bye"
+            if "rate" in lower or "rating" in lower:
+                return "rating"
+        if _is_question(title, language):
+            return "question"
+        return "generic"
 
-    def _compose(self, openers, bodies, closers) -> str:
-        return " ".join(
-            [self._rng.choice(openers), self._rng.choice(bodies), self._rng.choice(closers)]
-        )
+
+# Short, casual, human-sounding replies with a bit of slang and emoji, tuned
+# for an off-topic ("флудилка") section. Kept intentionally tiny.
+_RU_REPLIES = {
+    "greeting": [
+        "доброе утро ☀️", "здарова 🤝", "привет-привет 👋", "хай 😎",
+        "утречка ☕", "дратути 🖐️", "и тебе привет 😄", "здаров, чо как",
+    ],
+    "bye": [
+        "покеда 👋", "давай, не пропадай", "споки 😴", "бывай 🫡",
+        "ну удачи там 🙌", "пиши как что",
+    ],
+    "rating": [
+        "норм 👍", "10 из 10 🔥", "ну пойдёт 😄", "топчик 🔥", "мне зашло 👌",
+        "ну такое, но лайк 😅", "красава 💪", "имба",
+    ],
+    "question": [
+        "чоо? 🤨", "не пон 🤔", "а что случилось-то", "хз даже 🤷",
+        "поясни за это", "чо по чем 😅", "интересно, го дальше", "а сам как думаешь?",
+        "хмм, надо глянуть 👀",
+    ],
+    "generic": [
+        "пон 👌", "жиза 😂", "ахахах 😆", "лол 🤣", "база 💯", "мда уж 🙃",
+        "четко 🔥", "согласен полностью", "красава", "плюсую ➕",
+        "вот это поворот 😮", "ну ты дал 😄", "кек", "реально так", "топ 🔝",
+    ],
+}
+
+_EN_REPLIES = {
+    "greeting": ["morning ☀️", "hey hey 👋", "yo 😎", "hi there 🙌", "sup"],
+    "bye": ["cya 👋", "take care 🫡", "gn 😴", "later!"],
+    "rating": ["solid 👍", "10/10 🔥", "not bad 😄", "i dig it 👌", "clean"],
+    "question": ["huh? 🤔", "no idea tbh 🤷", "wait what", "explain pls",
+                 "hmm good one 👀"],
+    "generic": ["lol 😂", "based 💯", "true 🔥", "fr fr", "nice one 👌",
+                "haha 😆", "wild 😮", "agreed", "big +"],
+}
+
+_EXTRA_EMOJI = ["😁", "😂", "🔥", "💀", "👀", "🙌", "😅", "🤝", "✌️", "😎"]
 
 
 class OpenAIReplyGenerator:
@@ -225,12 +211,14 @@ class OpenAIReplyGenerator:
     def _system_prompt(self) -> str:
         lang = "русском" if self.language == "ru" else "English"
         return (
-            "Ты — вежливый и полезный участник форума. По заголовку темы напиши "
-            "короткий (2-4 предложения) содержательный и релевантный ответ, "
-            "как будто ты реально отвечаешь в обсуждении. Пиши на "
+            "Ты — обычный живой участник форума-флудилки. По заголовку темы "
+            "напиши ОЧЕНЬ короткий (1 короткая фраза, максимум предложение) "
+            "человеческий и рофельный ответ — так, как реально пишут в чате: "
+            "разговорно, с сленгом (типа «чоо», «пон», «жиза», «база», «доброе "
+            "утро») и с уместными эмодзи. Пиши на "
             f"{lang} языке (если заголовок на другом языке — отвечай на языке "
-            "заголовка). Без приветствий-штампов, без markdown, без ссылок и "
-            "рекламы. Ответ должен быть по существу заголовка."
+            "заголовка). Без markdown, без ссылок, без рекламы, без занудства. "
+            "Ответ должен быть в тему заголовка, но лёгкий и короткий."
         )
 
     def generate(self, title: str, *, thread_body: Optional[str] = None) -> str:

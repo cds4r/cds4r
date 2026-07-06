@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lolz_reply_bot"
+version = "0.1.0"
+description = "Bot that leaves context-aware replies in lolz.live threads by their title."
+readme = "lolz_reply_bot/README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+lolz-reply-bot = "lolz_reply_bot.cli:main"
+
+[tool.setuptools]
+packages = ["lolz_reply_bot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

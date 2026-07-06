@@ -61,9 +61,31 @@ python -m lolz_reply_bot --forum-id "123,456" --loop --loop-interval 600
 | `--max-replies N` | Cap replies per run. |
 | `--reply-to-own` | Also reply to the bot's own threads. |
 | `--allow-duplicates` | Ignore the state file and re‑reply. |
+| `--max-age-hours N` | Only reply to threads created in the last N hours. |
 | `--reply-language` | `ru` (default) or `en`. |
 | `--loop` / `--loop-interval` | Keep scanning periodically. |
 | `--request-delay` | Seconds between API calls (default 3, API limit ~20/min). |
+| `--undo` | Delete every post the bot created (tracked in the state file). |
+| `--delete-posts "id,id"` | Delete specific post id(s), then exit. |
+
+### Undo / delete replies
+
+The bot records the ids of posts it creates in its state file, so you can undo
+a run:
+
+```bash
+python -m lolz_reply_bot --forum-id 8 --undo
+```
+
+or delete specific posts by id:
+
+```bash
+python -m lolz_reply_bot --forum-id 8 --delete-posts "63975164,63975165"
+```
+
+Note: the forum only lets you delete your own post while it is still the last
+post in the thread and within the allowed time window; otherwise the API
+returns a permission error.
 
 ## Tests
 

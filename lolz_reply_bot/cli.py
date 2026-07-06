@@ -55,6 +55,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Keep running, re-scanning periodically.")
     parser.add_argument("--loop-interval", type=float, default=300.0,
                         help="Seconds to wait between cycles in --loop mode.")
+    parser.add_argument("--undo", action="store_true",
+                        help="Delete all posts this bot created (from the state file) "
+                             "in the given forum(s), then exit.")
+    parser.add_argument("--delete-posts",
+                        help="Delete the given post id(s) (comma separated), then exit.")
+    parser.add_argument("--delete-reason",
+                        help="Optional reason to send when deleting posts.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Enable debug logging.")
     return parser
@@ -105,6 +112,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     except ValueError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
+
+    # Deletion modes short-circuit the normal reply flow.
+    if args.delete_posts:
+        ids = [int(x) for x in _parse_forum_ids(args.delete_posts)]
+        deleted = bot.delete_posts(ids, reason=args.delete_reason)
+        print(f"\nDeleted {deleted}/{len(ids)} post(s).")
+        return 0
+    if args.undo:
+        deleted = bot.undo(reason=args.delete_reason)
+        print(f"\nDeleted {deleted} previously created post(s).")
+        return 0
 
     mode = "DRY-RUN" if config.dry_run else "LIVE"
     llm = "LLM" if config.use_llm else "template"

@@ -56,6 +56,30 @@ def test_bot_max_replies(tmp_path):
         assert len(server.created_posts) == 2
 
 
+def test_bot_undo_deletes_created_posts(tmp_path):
+    threads = {50: make_threads(50, ["Тема раз", "Тема два"])}
+    with MockLolzServer(threads) as server:
+        cfg = _config(server.base_url, [50], tmp_path)
+        bot = ReplyBot(cfg)
+        bot.run_once()
+        created_ids = [p["post_id"] for p in server.created_posts]
+        assert len(created_ids) == 2
+
+        # New bot loads the state file and undoes the posts.
+        undone = ReplyBot(_config(server.base_url, [50], tmp_path)).undo()
+        assert undone == 2
+        assert sorted(server.deleted_posts) == sorted(created_ids)
+
+
+def test_bot_delete_explicit_posts(tmp_path):
+    threads = {50: make_threads(50, ["Тема"])}
+    with MockLolzServer(threads) as server:
+        cfg = _config(server.base_url, [50], tmp_path)
+        deleted = ReplyBot(cfg).delete_posts([111, 222])
+        assert deleted == 2
+        assert sorted(server.deleted_posts) == [111, 222]
+
+
 def test_bot_dry_run_posts_nothing(tmp_path):
     threads = {50: make_threads(50, ["Тестовая тема?"])}
     with MockLolzServer(threads) as server:

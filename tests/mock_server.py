@@ -44,6 +44,7 @@ class MockLolzServer:
         self.token = token
         self.me_id = me_id
         self.created_posts = []
+        self.deleted_posts = []
         self._server = None
         self._thread = None
 
@@ -106,6 +107,16 @@ class MockLolzServer:
                     return self._send(200, {"post": {"post_id": post_id,
                                                      "thread_id": thread_id,
                                                      "post_body": post_body}})
+                return self._send(404, {"errors": ["Not found"]})
+
+            def do_DELETE(self):
+                parsed = urlparse(self.path)
+                if not self._authorized():
+                    return self._send(401, {"errors": ["Unauthorized"]})
+                if parsed.path.startswith("/posts/"):
+                    post_id = int(parsed.path.rsplit("/", 1)[-1])
+                    outer.deleted_posts.append(post_id)
+                    return self._send(200, {"status": "ok", "message": "Changes Saved"})
                 return self._send(404, {"errors": ["Not found"]})
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)

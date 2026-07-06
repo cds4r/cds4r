@@ -153,7 +153,7 @@ class ReplyBot:
         try:
             post = self.client.create_post(thread_id, reply_body)
             post_id = post.get("post_id")
-            self.state.mark_replied(forum_id, thread_id)
+            self.state.mark_replied(forum_id, thread_id, post_id=post_id)
             logger.info("Replied to thread #%s '%s' (post_id=%s)", thread_id, title, post_id)
             return ReplyResult(forum_id, thread_id, title, reply_body, posted=True,
                                post_id=post_id)
@@ -161,6 +161,35 @@ class ReplyBot:
             logger.error("Failed to reply to thread #%s: %s", thread_id, exc)
             return ReplyResult(forum_id, thread_id, title, reply_body, posted=False,
                                error=str(exc))
+
+    def delete_posts(self, post_ids: List[int], reason: Optional[str] = None) -> int:
+        """Delete the given post ids. Returns the number of posts deleted."""
+        deleted = 0
+        for post_id in post_ids:
+            try:
+                self.client.delete_post(post_id, reason=reason)
+                self.state.forget_post(post_id)
+                deleted += 1
+                logger.info("Deleted post #%s", post_id)
+            except ForumApiError as exc:
+                logger.error("Failed to delete post #%s: %s", post_id, exc)
+        self.state.save()
+        return deleted
+
+    def undo(self, reason: Optional[str] = None) -> int:
+        """Delete every post recorded in the state file for the configured forums."""
+        post_ids: List[int] = []
+        for forum_id in self.config.forum_ids:
+            post_ids.extend(
+                p["post_id"] for p in self.state.created_posts(forum_id)
+                if p.get("post_id") is not None
+            )
+        if not post_ids:
+            logger.info("No recorded posts to delete for forums %s",
+                        self.config.forum_ids)
+            return 0
+        logger.info("Deleting %s previously created post(s)", len(post_ids))
+        return self.delete_posts(post_ids, reason=reason)
 
     def run(self) -> List[ReplyResult]:
         """Run once, or loop forever when ``config.loop`` is set."""

@@ -172,3 +172,8 @@ class LolzForumClient:
         data = {"thread_id": thread_id, "post_body": post_body}
         payload = self._request("POST", "/posts", data=data)
         return payload.get("post", payload)
+
+    def delete_post(self, post_id: int, reason: Optional[str] = None) -> Dict[str, Any]:
+        """Delete a post by its id."""
+        data = {"reason": reason} if reason else None
+        return self._request("DELETE", f"/posts/{post_id}", data=data)

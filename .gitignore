@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Environment / secrets
+.env
+
+# Bot runtime state
+.lolz_reply_bot_state.json
+*.lolz_reply_bot_state.json

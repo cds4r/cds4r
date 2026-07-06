@@ -85,6 +85,12 @@ class ReplyBot:
         thread_id = thread.get("thread_id")
         if thread_id is None:
             return "missing thread_id"
+        if self.config.max_thread_age_hours is not None:
+            created = thread.get("thread_create_date")
+            if created is not None:
+                age_hours = (time.time() - float(created)) / 3600.0
+                if age_hours > self.config.max_thread_age_hours:
+                    return "older than window"
         if self.config.reply_once_per_thread and self.state.has_replied(forum_id, thread_id):
             return "already replied"
         if self.config.skip_own_threads:

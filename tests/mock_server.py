@@ -13,13 +13,16 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 
-def make_threads(forum_id, titles, creator_user_id=999):
+def make_threads(forum_id, titles, creator_user_id=999, ages_seconds=None):
+    now = int(time.time())
     threads = []
     for idx, title in enumerate(titles, start=1):
+        age = 0 if ages_seconds is None else ages_seconds[idx - 1]
         threads.append(
             {
                 "thread_id": forum_id * 100 + idx,
@@ -27,6 +30,7 @@ def make_threads(forum_id, titles, creator_user_id=999):
                 "thread_title": title,
                 "creator_user_id": creator_user_id,
                 "creator_username": "op_user",
+                "thread_create_date": now - age,
             }
         )
     return threads

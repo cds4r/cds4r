@@ -40,6 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Thread ordering (default newest first).")
     parser.add_argument("--max-replies", type=int,
                         help="Maximum number of replies to post in this run.")
+    parser.add_argument("--max-age-hours", type=float,
+                        help="Only reply to threads created within the last N hours.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Generate and print replies without posting them.")
     parser.add_argument("--reply-to-own", action="store_true",
@@ -78,6 +80,8 @@ def build_config(args: argparse.Namespace) -> BotConfig:
     config.pages = args.pages
     config.order = args.order
     config.max_replies = args.max_replies
+    if args.max_age_hours is not None:
+        config.max_thread_age_hours = args.max_age_hours
     config.dry_run = args.dry_run
     config.skip_own_threads = not args.reply_to_own
     config.reply_once_per_thread = not args.allow_duplicates

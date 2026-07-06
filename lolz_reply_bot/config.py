@@ -46,6 +46,9 @@ class BotConfig:
     order: str = "thread_create_date_reverse"
     max_replies: Optional[int] = None
 
+    # Only reply to threads created within this many hours (None = no limit).
+    max_thread_age_hours: Optional[float] = None
+
     # Behaviour toggles.
     dry_run: bool = False
     skip_own_threads: bool = True
@@ -105,6 +108,10 @@ class BotConfig:
         delay = _get("LOLZ_REQUEST_DELAY")
         if delay is not None:
             cfg.request_delay = float(delay)
+
+        max_age = _get("LOLZ_MAX_THREAD_AGE_HOURS")
+        if max_age is not None:
+            cfg.max_thread_age_hours = float(max_age)
 
         cfg.reply_language = _get("REPLY_LANGUAGE") or DEFAULT_REPLY_LANGUAGE
         cfg.llm_api_key = _get("LLM_API_KEY")

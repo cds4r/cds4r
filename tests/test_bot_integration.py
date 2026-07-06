@@ -66,6 +66,25 @@ def test_bot_dry_run_posts_nothing(tmp_path):
         assert results[0].reply_body  # a reply was still generated
 
 
+def test_bot_max_age_hours_filter(tmp_path):
+    # thread 1 created 30 min ago (within window), thread 2 created 5h ago (old)
+    threads = {
+        50: make_threads(
+            50,
+            ["Свежая тема?", "Старая тема"],
+            ages_seconds=[30 * 60, 5 * 3600],
+        )
+    }
+    with MockLolzServer(threads) as server:
+        cfg = _config(server.base_url, [50], tmp_path, max_thread_age_hours=2)
+        results = ReplyBot(cfg).run_once()
+        posted = [r for r in results if r.posted]
+        skipped = [r for r in results if r.skipped_reason == "older than window"]
+        assert len(posted) == 1
+        assert len(skipped) == 1
+        assert len(server.created_posts) == 1
+
+
 def test_bot_skips_own_threads(tmp_path):
     # me_id == creator_user_id -> thread should be skipped
     threads = {50: make_threads(50, ["Моя тема?"], creator_user_id=1)}
